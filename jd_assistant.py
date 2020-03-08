@@ -367,11 +367,15 @@ class Assistant(object):
         return 'https:' + reserve_url if reserve_url else None
 
     @check_login
-    def make_reserve(self, sku_id):
+    def make_reserve(self, sku_id, buy_time):
         """商品预约
         :param sku_id: 商品id
         :return:
         """
+        logger.info('商品预约，商品编号:[%s]', sku_id)
+        t = Timer(buy_time=buy_time)
+        t.start()
+        
         reserve_url = self._get_reserve_url(sku_id)
         if not reserve_url:
             logger.error('%s 非预约商品', sku_id)
@@ -1193,6 +1197,7 @@ class Assistant(object):
         default_address = init_info['addressList'][0]  # 默认地址dict
         invoice_info = init_info.get('invoiceInfo', {})  # 默认发票信息dict, 有可能不返回
         token = init_info['token']
+        logger.info(init_info)
 
         data = {
             'skuId': sku_id,
@@ -1299,7 +1304,7 @@ class Assistant(object):
             return False
 
     @deprecated
-    def exec_seckill_by_time(self, sku_ids, buy_time, retry=4, interval=4, num=1):
+    def exec_seckill_by_time(self, sku_ids, buy_time, retry=5, interval=0.2, num=1):
         """定时抢购
         :param sku_ids: 商品id，多个商品id用逗号进行分割，如"123,456,789"
         :param buy_time: 下单时间，例如：'2018-09-28 22:45:50.000'
