@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
+from datetime import datetime
+
 from jd_assistant import Assistant
 
 if __name__ == '__main__':
@@ -17,6 +19,9 @@ if __name__ == '__main__':
     x = int(input('预约请安1,抢购请按2:'))
     sku_ids = input('请输入商品编号:')
     buy_time = input('请输入抢购预约时间(如2018-09-28 22:45:50.000):')
+    time1 = datetime.now().strftime('%Y-%m-%d ')
+    if len(buy_time) == 12 :
+        buy_time = time1 + buy_time
     if x == 1:
         asst.make_reserve(sku_id=sku_ids, buy_time=buy_time)
     # """商品预约
