@@ -1123,8 +1123,8 @@ class Assistant(object):
                 logger.info("抢购链接获取成功: %s", seckill_url)
                 return seckill_url
             else:
-                logger.info("抢购链接获取失败，%s不是抢购商品或抢购页面暂未刷新，1秒后重试", sku_id)
-                time.sleep(1)
+                logger.info("抢购链接获取失败，%s不是抢购商品或抢购页面暂未刷新，0.1秒后重试", sku_id)
+                time.sleep(0.1)
 
     @deprecated
     def request_seckill_url(self, sku_id):

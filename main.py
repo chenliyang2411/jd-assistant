@@ -29,7 +29,7 @@ if __name__ == '__main__':
     #        :return:
     #        """
 
-    elif  x == 2:
+    elif x == 2:
         asst.exec_seckill_by_time(sku_ids=sku_ids, buy_time=buy_time)
     # """定时抢购
     # :param sku_ids: 商品id，多个商品id用逗号进行分割，如"123,456,789"
@@ -40,7 +40,8 @@ if __name__ == '__main__':
     # :return:
     # """
 
-    # asst.exec_reserve_seckill_by_time(sku_id=sku_ids, buy_time="2020-03-07 20:00:00.500")
+    elif x == 3:
+        asst.exec_reserve_seckill_by_time(sku_id=sku_ids, buy_time=buy_time)
     # 执行预约抢购
     # 5个参数
     # sku_id: 商品id
@@ -49,8 +50,9 @@ if __name__ == '__main__':
     # interval: 抢购执行间隔，可选参数，默认4秒
     # num: 购买数量，可选参数，默认1个
 
-    # asst.add_item_to_cart(sku_ids=sku_ids)  # 根据商品id添加购物车（可选）
-    # asst.submit_order_by_time(buy_time='2020-03-03 16:14:00.000', retry=4, interval=5)  # 定时提交订单
+    elif x == 4:
+         asst.add_item_to_cart(sku_ids=sku_ids)  # 根据商品id添加购物车（可选）
+         asst.submit_order_by_time(buy_time=buy_time, retry=4, interval=5)  # 定时提交订单
     # 3个参数：
     # buy_time: 下单时间，例如：'2019-02-16 01:17:59.500'
     # retry: 下单重复执行次数，可选参数，默认4次
