@@ -1237,6 +1237,42 @@ class Assistant(object):
         return data
 
     @deprecated
+    def request_seckill_use_coupon(self, sku_id, num=1):
+        """使用运费卷
+        :param sku_id: 商品id
+        :param num: 购买数量，可选参数，默认1个
+        :return: 抢购结果 True/False
+        """
+        url = 'https://marathon.jd.com/seckillnew/couponService/pc/getCouponList.action'
+        if not self.seckill_order_data.get(sku_id):
+            self.seckill_order_data[sku_id] = self._gen_seckill_order_data(sku_id, num)
+        headers = {
+            'User-Agent': self.user_agent,
+            'Host': 'marathon.jd.com',
+            'Referer': 'https://marathon.jd.com/seckill/seckill.action?skuId={0}&num={1}&rid={2}'.format(
+                sku_id, num, int(time.time())),
+        }
+        resp = self.sess.post(url=url, data=self.seckill_order_data.get(sku_id), headers=headers)
+        resp_json = parse_json(resp.text)
+        # 返回信息
+        # 抢购失败：
+        # {'errorMessage': '很遗憾没有抢到，再接再厉哦。', 'orderId': 0, 'resultCode': 60074, 'skuId': 0, 'success': False}
+        # {'errorMessage': '抱歉，您提交过快，请稍后再提交订单！', 'orderId': 0, 'resultCode': 60017, 'skuId': 0, 'success': False}
+        # {'errorMessage': '系统正在开小差，请重试~~', 'orderId': 0, 'resultCode': 90013, 'skuId': 0, 'success': False}
+        # 抢购成功：
+        # {"appUrl":"xxxxx","orderId":820227xxxxx,"pcUrl":"xxxxx","resultCode":0,"skuId":0,"success":true,"totalMoney":"xxxxx"}
+
+        if resp_json.get('success'):
+            order_id = resp_json.get('orderId')
+            total_money = resp_json.get('totalMoney')
+            pay_url = 'https:' + resp_json.get('pcUrl')
+            logger.info('抢购成功，订单号: %s, 总价: %s, 电脑端付款链接: %s', order_id, total_money, pay_url)
+            return True
+        else:
+            logger.info('抢购失败，返回信息: %s', resp_json)
+            return False
+
+    @deprecated
     def submit_seckill_order(self, sku_id, num=1):
         """提交抢购（秒杀）订单
         :param sku_id: 商品id
@@ -1294,6 +1330,7 @@ class Assistant(object):
             logger.info('第[%s/%s]次尝试抢购商品:%s', count, retry, sku_id)
             self.request_seckill_url(sku_id)
             self.request_seckill_checkout_page(sku_id, num)
+            self.request_seckill_use_coupon(sku_id, num)
             if self.submit_seckill_order(sku_id, num):
                 return True
             else:
