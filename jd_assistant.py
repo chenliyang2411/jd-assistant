@@ -989,6 +989,17 @@ class Assistant(object):
             logger.info('重试提交%s次结束', retry)
             return False
 
+    def use_coupon(self, num=1):
+        """购物车提交订单---使用运费卷--plus会员的运费卷使用
+        """
+        url = 'https://trade.jd.com/shopping/dynamic/coupon/getBestVertualCoupons.action'
+        headers = {
+            'User-Agent': self.user_agent,
+            'Host': 'trade.jd.com',
+            'Referer': 'https://trade.jd.com/shopping/order/getOrderInfo.action',
+        }
+        resp = self.sess.post(url=url, headers=headers)
+
     @check_login
     def submit_order_by_time(self, buy_time, retry=4, interval=5):
         """定时提交商品订单
@@ -1238,7 +1249,7 @@ class Assistant(object):
 
     @deprecated
     def request_seckill_use_coupon(self, sku_id, num=1):
-        """使用运费卷
+        """抢购---使用运费卷
         :param sku_id: 商品id
         :param num: 购买数量，可选参数，默认1个
         :return: 抢购结果 True/False

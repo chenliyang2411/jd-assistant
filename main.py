@@ -52,6 +52,7 @@ if __name__ == '__main__':
 
     elif x == 4:
          asst.add_item_to_cart(sku_ids=sku_ids)  # 根据商品id添加购物车（可选）
+         asst.use_coupon()
          asst.submit_order_by_time(buy_time=buy_time, retry=4, interval=5)  # 定时提交订单
     # 3个参数：
     # buy_time: 下单时间，例如：'2019-02-16 01:17:59.500'
