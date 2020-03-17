@@ -1000,6 +1000,27 @@ class Assistant(object):
         }
         resp = self.sess.post(url=url, headers=headers)
 
+    def use_gift_card(self, num=1):
+        """购物车提交订单---查询购物卡
+        """
+        timestarmp = str(int(time.time() * 1000))
+        url = 'https://trade.jd.com/virtual/v1/gift-card'
+        payload = {
+            'cardListPageSize': 100,
+            'cardListPageNo': 1,
+            'queryType': 1,
+            'flowType': 0,
+        }
+        headers = {
+            'User-Agent': self.user_agent,
+            'Host': 'trade.jd.com',
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Referer': 'http://trade.jd.com/shopping/order/getOrderInfo.action',
+        }
+        resp = self.sess.get(url=url, params=payload, headers=headers)
+        resp_json = parse_json(resp.text)
+        resp_json.get("giftCardList")[0].get("key")
+
     @check_login
     def submit_order_by_time(self, buy_time, retry=4, interval=5):
         """定时提交商品订单
