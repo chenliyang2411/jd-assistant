@@ -3,6 +3,7 @@
 from datetime import datetime
 
 from jd_assistant import Assistant
+from timer import Timer
 
 if __name__ == '__main__':
     """
@@ -51,10 +52,7 @@ if __name__ == '__main__':
     # num: 购买数量，可选参数，默认1个
 
     elif x == 4:
-         asst.add_item_to_cart(sku_ids=sku_ids)  # 根据商品id添加购物车（可选）
-         asst.use_coupon()
-         asst.use_gift_card()
-         asst.submit_order_by_time(buy_time=buy_time, retry=4, interval=5)  # 定时提交订单
+         asst.submit_order_by_time(sku_ids=sku_ids, buy_time=buy_time, retry=4, interval=5)  # 定时提交订单
     # 3个参数：
     # buy_time: 下单时间，例如：'2019-02-16 01:17:59.500'
     # retry: 下单重复执行次数，可选参数，默认4次

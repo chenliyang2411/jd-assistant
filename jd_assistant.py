@@ -45,6 +45,7 @@ class Assistant(object):
         self.fp = global_config.get('config', 'fp')
         self.track_id = global_config.get('config', 'track_id')
         self.risk_control = global_config.get('config', 'risk_control')
+        self.payment_pwd = global_config.get('account', 'payment_pwd')
         if not self.eid or not self.fp or not self.track_id or not self.risk_control:
             raise AsstException('请在 config.ini 中配置 eid, fp, track_id, risk_control 参数，具体请参考 wiki-常见问题')
 
@@ -1010,24 +1011,42 @@ class Assistant(object):
             'cardListPageNo': 1,
             'queryType': 1,
             'flowType': 0,
+            '_': timestarmp,
         }
         headers = {
             'User-Agent': self.user_agent,
             'Host': 'trade.jd.com',
-            'Content-Type': 'application/json; charset=UTF-8',
+            'content-type': 'application/json;charset=UTF-8',
             'Referer': 'http://trade.jd.com/shopping/order/getOrderInfo.action',
         }
         resp = self.sess.get(url=url, params=payload, headers=headers)
         resp_json = parse_json(resp.text)
-        resp_json.get("giftCardList")[0].get("key")
+        giftCardkey = resp_json.get("giftCardList")[0].get("key")
+
+        url3 = 'https://trade.jd.com/virtual/v1/gift-card/{0}'.format(giftCardkey)
+        payload3 = {
+            'cardListPageNo': 1,
+            'cardListPageSize': 100,
+            'flowType': 0,
+            'queryType': 1,
+        }
+        headers3 = {
+            'User-Agent': self.user_agent,
+            'Host': 'trade.jd.com',
+            'content-type': 'application/json;charset=UTF-8',
+            'Referer': 'http://trade.jd.com/shopping/order/getOrderInfo.action',
+        }
+        jdata = json.dumps(payload3)  # request paylod 参数
+        resp3 = self.sess.post(url=url3, data=jdata, headers=headers3)
+        resp_json3 = parse_json(resp3.text)
+
 
     @check_login
-    def submit_order_by_time(self, buy_time, retry=4, interval=5):
+    def submit_order_by_time(self, sku_ids, buy_time, retry=4, interval=5):
         """定时提交商品订单
 
         重要：该方法只适用于普通商品的提交订单，事先需要先将商品加入购物车并勾选✓。
 
-        :param buy_time: 下单时间，例如：'2018-09-28 22:45:50.000'
         :param retry: 下单重复执行次数，可选参数，默认4次
         :param interval: 下单执行间隔，可选参数，默认5秒
         :return:
@@ -1035,6 +1054,9 @@ class Assistant(object):
         t = Timer(buy_time=buy_time)
         t.start()
 
+        self.add_item_to_cart(sku_ids=sku_ids)  # 根据商品id添加购物车（可选）
+        self.use_coupon()
+        self.use_gift_card()
         for count in range(1, retry + 1):
             logger.info('第[%s/%s]次尝试提交订单', count, retry)
             if self.submit_order():
@@ -1255,7 +1277,7 @@ class Assistant(object):
             'invoicePhone': invoice_info.get('invoicePhone', ''),
             'invoicePhoneKey': invoice_info.get('invoicePhoneKey', ''),
             'invoice': 'true' if invoice_info else 'false',
-            'password': '',
+            'password': self.payment_pwd,
             'codTimeType': 3,
             'paymentType': 4,
             'areaCode': '',
@@ -1273,36 +1295,73 @@ class Assistant(object):
         """抢购---使用运费卷
         :param sku_id: 商品id
         :param num: 购买数量，可选参数，默认1个
-        :return: 抢购结果 True/False
         """
-        url = 'https://marathon.jd.com/seckillnew/couponService/pc/getCouponList.action'
-        if not self.seckill_order_data.get(sku_id):
-            self.seckill_order_data[sku_id] = self._gen_seckill_order_data(sku_id, num)
-        headers = {
-            'User-Agent': self.user_agent,
-            'Host': 'marathon.jd.com',
-            'Referer': 'https://marathon.jd.com/seckill/seckill.action?skuId={0}&num={1}&rid={2}'.format(
-                sku_id, num, int(time.time())),
-        }
-        resp = self.sess.post(url=url, data=self.seckill_order_data.get(sku_id), headers=headers)
-        resp_json = parse_json(resp.text)
-        # 返回信息
-        # 抢购失败：
-        # {'errorMessage': '很遗憾没有抢到，再接再厉哦。', 'orderId': 0, 'resultCode': 60074, 'skuId': 0, 'success': False}
-        # {'errorMessage': '抱歉，您提交过快，请稍后再提交订单！', 'orderId': 0, 'resultCode': 60017, 'skuId': 0, 'success': False}
-        # {'errorMessage': '系统正在开小差，请重试~~', 'orderId': 0, 'resultCode': 90013, 'skuId': 0, 'success': False}
-        # 抢购成功：
-        # {"appUrl":"xxxxx","orderId":820227xxxxx,"pcUrl":"xxxxx","resultCode":0,"skuId":0,"success":true,"totalMoney":"xxxxx"}
+        try:
+            url = 'https://marathon.jd.com/seckillnew/couponService/pc/getCouponList.action'
+            headers = {
+                'User-Agent': self.user_agent,
+                'Host': 'marathon.jd.com',
+                'Referer': 'https://marathon.jd.com/seckill/seckill.action?skuId={0}&num={1}&rid={2}'.format(
+                    sku_id, num, int(time.time())),
+            }
+            resp = self.sess.post(url=url, headers=headers)
+            resp_json = parse_json(resp.text)
+            logger.info("查询运费卷 %s", resp_json)
+            coupon = resp_json.get("couponList")[0]
 
-        if resp_json.get('success'):
-            order_id = resp_json.get('orderId')
-            total_money = resp_json.get('totalMoney')
-            pay_url = 'https:' + resp_json.get('pcUrl')
-            logger.info('抢购成功，订单号: %s, 总价: %s, 电脑端付款链接: %s', order_id, total_money, pay_url)
-            return True
-        else:
-            logger.info('抢购失败，返回信息: %s', resp_json)
-            return False
+            url = 'https://marathon.jd.com/seckillnew/couponService/pc/useCoupon.action'
+            headers = {
+                'User-Agent': self.user_agent,
+                'Host': 'marathon.jd.com',
+                'Referer': 'https://marathon.jd.com/seckill/seckill.action?skuId={0}&num={1}&rid={2}'.format(
+                    sku_id, num, int(time.time())),
+            }
+            payload = {
+                'couponId': coupon.get("id"),
+                'couponKey': coupon.get("key"),
+                'type': 0,
+            }
+            resp = self.sess.post(url=url, data=payload, headers=headers)
+            logger.info("使用运费卷 %s", parse_json(resp.text))
+        except Exception as e:
+            logger.error(e)
+            pass
+
+    @deprecated
+    def request_seckill_use_gift_card(self, sku_id, num=1):
+        """抢购---使用购物卡 E卡
+        :param sku_id: 商品id
+        """
+        try:
+            url = 'https://marathon.jd.com/seckillnew/giftCardService/pc/getGiftCardList.action'
+            headers = {
+                'User-Agent': self.user_agent,
+                'Host': 'marathon.jd.com',
+                'Referer': 'https://marathon.jd.com/seckill/seckill.action?skuId={0}&num={1}&rid={2}'.format(
+                    sku_id, num, int(time.time())),
+            }
+            resp = self.sess.post(url=url, headers=headers)
+            resp_json = parse_json(resp.text)
+            logger.info("查询E卡 %s", resp_json)
+            eCardsAble = resp_json.get("eCardsAble")[0]
+
+            url = 'https://marathon.jd.com/seckillnew/giftCardService/pc/useGiftCard.action'
+            headers = {
+                'User-Agent': self.user_agent,
+                'Host': 'marathon.jd.com',
+                'Referer': 'https://marathon.jd.com/seckill/seckill.action?skuId={0}&num={1}&rid={2}'.format(
+                    sku_id, num, int(time.time())),
+            }
+            payload = {
+                'giftCardId': eCardsAble.get("id"),
+                'giftCardKey': eCardsAble.get("key"),
+                'type': 0,
+            }
+            resp = self.sess.post(url=url, data=payload, headers=headers)
+            logger.info("使用E卡 %s", parse_json(resp.text))
+        except Exception as e:
+            logger.error(e)
+            pass
 
     @deprecated
     def submit_seckill_order(self, sku_id, num=1):
@@ -1324,6 +1383,7 @@ class Assistant(object):
                 sku_id, num, int(time.time())),
         }
         resp = self.sess.post(url=url, params=payload, data=self.seckill_order_data.get(sku_id), headers=headers)
+        logger.info("提交:%s", resp.text)
         resp_json = parse_json(resp.text)
         # 返回信息
         # 抢购失败：
@@ -1363,6 +1423,7 @@ class Assistant(object):
             self.request_seckill_url(sku_id)
             self.request_seckill_checkout_page(sku_id, num)
             self.request_seckill_use_coupon(sku_id, num)
+            self.request_seckill_use_gift_card(sku_id, num)
             if self.submit_seckill_order(sku_id, num):
                 return True
             else:
